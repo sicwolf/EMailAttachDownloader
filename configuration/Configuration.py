@@ -18,7 +18,7 @@ def get_default_download_path():
 class Configuration:
     def __init__(self):
         self.app_name = "电子邮件附件下载器"
-        self.app_version = "V1.0.1"
+        self.app_version = "V1.0.2"
         self.display_flag_mail_with_attach = True
         self.app_icon_file = 'resource\\app2.ico'
         self.download_flag_time = False
@@ -28,7 +28,7 @@ class Configuration:
         self.download_mail_number = 20
         self.download_default_folder = get_default_download_path()
         self.download_folder = get_default_download_path()
-        self.download_in_different_folder = True
+        self.download_in_different_folder = False
         self.status_recall = None
 
     def set_status_recall(self, status_recall):

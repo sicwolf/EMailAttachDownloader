@@ -1,5 +1,6 @@
 import logging
 import imaplib
+import os
 import socket
 import threading
 import queue
@@ -87,6 +88,16 @@ class Worker(threading.Thread):
             logging.error(e)
             self.mail_session = None
             return_status = CommonMSG.ERR_CODE_WRONG_SERVER_NAME
+        except os.error as e:
+            logging.error(e)
+            self.mail_session = None
+            return_status = CommonMSG.ERR_CODE_CONNECTION_TIMEOUT
+        except BaseException as e:
+            logging.error(e)
+            self.mail_session = None
+            return_status = CommonMSG.ERR_CODE_UNKNOWN_ERROR
+
+
 
         if return_status == CommonMSG.ERR_CODE_SUCCESSFUL:
             mails_index = self.mail_session.fetch_all_mail_index()

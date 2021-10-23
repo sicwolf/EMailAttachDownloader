@@ -1,10 +1,12 @@
 import logging
+import time
 import tkinter as tk
 from tkinter import messagebox as mb, ttk
 from tkinter.filedialog import askdirectory
 from tkinter.ttk import Progressbar
 
-import mail.Utils as utils
+import mail.Utils as Utils
+import ui.UIUtils as UIUtils
 from message.message import LoginMSG, CommonMSG, DownloadMSG, UpdateConfigMSG, LoadMailMSG
 from ui.GUI import GUI
 
@@ -160,6 +162,7 @@ class Login(GUI):
         self.maximum_display_mail_index = -1
         self.mails_index = []
         self.current_display_mails = {}
+        self.received_mails = {}
 
         self.clean_inbox_control()
 
@@ -296,7 +299,7 @@ class Login(GUI):
         self.str_addr = self.entry_addr.get()
         self.str_password = self.entry_password.get()
 
-        self.str_server = utils.get_server_from_email_address(self.str_addr)
+        self.str_server = Utils.get_server_from_email_address(self.str_addr)
 
         if self.str_addr is None or self.str_addr == '':
             mb.showerror("错误", "请输入邮箱地址！")
@@ -352,6 +355,11 @@ class Login(GUI):
 
         download_flag = CommonMSG.DOWNLOAD_FLAG_LAST_NUMBER
         selected_items = self.tree_inbox.selection()
+
+        if len(selected_items) > self.configuration.download_mail_number:
+            mb.showinfo("提示",
+                        "一次最多下载" + str(self.configuration.download_mail_number) + "封邮件的附件，请减少选中邮件数量。")
+
         selected_mails_index = []
         current_display_mails_keys = list(self.current_display_mails.keys())
 
@@ -412,7 +420,31 @@ class Login(GUI):
             self.configuration.set_status_recall(self.update_status_recall)
             self.__notify_configuration()
             self.mails_index = mails_index
-            self.current_display_mails = mails_eml
+            self.received_mails = mails_eml
+
+            # Reorder mails by received time.
+            # It is a bug in QQ mail service, the mail index order does not whole match the received time order.
+            temp_current_display_mails = {}
+            for mail_item in self.received_mails.items():
+                if mail_item[1].receive_time is not None:
+                    temp_time_stamp_array = time.strptime(mail_item[1].receive_time, '%Y/%m/%d %H:%M:%S')
+                    temp_time_stamp = time.mktime(temp_time_stamp_array)
+                    temp_current_display_mails[temp_time_stamp] = mail_item[1]
+                else:
+                    temp_mail_index_bytes = mail_item[0]
+                    temp_mail_index_int = int.from_bytes(temp_mail_index_bytes, 'big') - 1
+                    temp_mail_index_bytes = int.to_bytes(temp_mail_index_int, 4, 'big')
+                    temp_receive_time = self.received_mails[temp_mail_index_bytes].receive_time
+                    temp_time_stamp_array = time.strptime(temp_receive_time, '%Y/%m/%d %H:%M:%S')
+                    temp_time_stamp = time.mktime(temp_time_stamp_array) + 1
+                    temp_current_display_mails[temp_time_stamp] = mail_item[1]
+
+            sorted_keys = sorted(temp_current_display_mails.keys(), reverse=True)
+
+            for temp_key in sorted_keys:
+                temp_index = temp_current_display_mails[temp_key].mail_index
+                self.current_display_mails[temp_index] = temp_current_display_mails[temp_key]
+
             self.__display_inbox()
             self.window.bind("<Configure>", self.resize_occurred)
             self.window.bind(sequence="<Control-A>", func=self.ctl_sft_a_clicked)
@@ -421,6 +453,10 @@ class Login(GUI):
             mb.showerror("提示", "错误的邮箱域名。")
         elif handle_result == CommonMSG.ERR_CODE_WRONG_USER_NAME_OR_PASSWORD:
             mb.showerror("提示", "错误的用户名或密码。")
+        elif handle_result == CommonMSG.ERR_CODE_CONNECTION_TIMEOUT:
+            mb.showerror("提示", "邮件服务器连接超时。")
+        elif handle_result == CommonMSG.ERR_CODE_UNKNOWN_ERROR:
+            mb.showerror("提示", "系统未知错误。")
 
     def load_mail_recall(self, mails):
         logging.debug(self.__class__.__name__ + '.load_mail_recall calling')
@@ -435,10 +471,12 @@ class Login(GUI):
         for mail_item in self.current_display_mails.items():
             # logging.debug(mail_item)
             mail_eml = mail_item[1]
+            tmp_subject = UIUtils.correct_subject(mail_eml.subject)
+
             self.tree_inbox.insert(
                 '',
                 loop,
-                values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, mail_eml.subject))
+                values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject))
             loop = loop + 1
 
     def __notify_configuration(self):

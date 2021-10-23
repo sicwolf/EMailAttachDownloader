@@ -2,8 +2,8 @@ import re
 
 
 def validate_file_name(file_name):
-    pattern = r"[\/\\\:\*\?\"\<\>\|]"
-    new_file_name = re.sub(pattern, "_", file_name)
+    pattern = r"[\\\n\+\ \,\，\/\\\:\*\?\"\<\>\|]"
+    new_file_name = re.sub(pattern, "", file_name)
     return new_file_name
 
 

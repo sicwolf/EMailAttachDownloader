@@ -1,10 +1,11 @@
 import email
+import logging
 
 from mail import Utils
 
 
 class MailEML:
-    def __init__(self, header=None, mail=None):
+    def __init__(self, header=None, mail=None, mail_index=None):
         self.header = header
         self.mail = mail
         self.sender_name = None
@@ -16,11 +17,20 @@ class MailEML:
         self.receive_time = None
         self.receive_time_raw = None
         self.has_attach = False
+        self.mail_index = mail_index
 
         self.parse_mail()
+        self.log_mail()
 
     def set_mail(self, mail):
         self.mail = mail
+
+    def log_mail(self):
+        """
+        Do not filter the special character in subject, log it faithfully
+        """
+        logging.info(str(self.mail_index) + str(self.sender_name) + " " + str(self.receiver_name) + " " +
+                     str(self.receive_time) + " " + str(self.subject))
 
     def parse_mail(self):
         to_be_parsed = None
@@ -60,6 +70,13 @@ class MailEML:
         subject = email.header.decode_header(subject_raw)
 
         if subject[0][1] is not None:
-            self.subject = subject[0][0].decode(subject[0][1])
+            # If encoding type is 'unknown-8bit', decode it as 'GB2312' by default. This is a bug of QQ mail service.
+            # TODO: Check the encoding type in other fields of the mail, which country the mail service provider of
+            #  sender is , so that the language can be guessed, use the majority encoding type of that language.
+            if subject[0][1] == 'unknown-8bit':
+                logging.debug("unknown-8bit error: mail from " + str(self.sender_addr) + "at " + str(self.receive_time))
+                self.subject = subject[0][0].decode('GB2312')
+            else:
+                self.subject = subject[0][0].decode(subject[0][1])
         else:
             self.subject = subject[0][0]

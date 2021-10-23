@@ -84,8 +84,12 @@ class MailSession:
 
                     if data[0] is not None:
                         temp_header = email.message_from_bytes(data[0][1])
-                        temp_mail_eml = MailEML(header=temp_header)
-                        self.mail_queue_cache.enqueue(temp_mail_index, temp_mail_eml)
+                        temp_mail_eml = MailEML(header=temp_header, mail_index=temp_mail_index)
+
+                        if temp_mail_eml.subject is not None:
+                            self.mail_queue_cache.enqueue(temp_mail_index, temp_mail_eml)
+                        else:
+                            logging.error("mail subject is None in mail whose index is " + str(temp_mail_index))
 
                 if temp_header is not None and temp_load_mail_amount != 0:
                     temp_headers[temp_mail_index] = temp_mail_eml
@@ -186,7 +190,8 @@ class MailSession:
             attach_index = attach_index + 1
 
             if not self.configuration.download_in_different_folder:
-                filename = subject[0:10] + filename
+                # filename = subject[0:40] + filename
+                filename = subject + "." + filename.split(".")[-1]
 
             if not os.path.exists(folder_name):
                 os.makedirs(folder_name)
@@ -194,10 +199,16 @@ class MailSession:
             att_path = os.path.join(folder_name, filename)
 
             if not os.path.isfile(att_path):
-                fp = open(att_path, 'wb')
-                fp.write(part.get_payload(decode=True))
-                fp.close()
-                logging.info("Downloaded: " + filename)
+                try:
+                    fp = open(att_path, 'wb')
+                    fp.write(part.get_payload(decode=True))
+                    fp.close()
+                    logging.info("Downloaded: " + filename)
+                except OSError as e:
+                    """TODO: Record and info failed mail"""
+                    logging.error(e)
+                    break
+
         return att_path
 
     def save_mails_attachment(self, mails_index=None, download_mail_number=10):
