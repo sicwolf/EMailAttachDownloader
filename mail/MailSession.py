@@ -1,6 +1,7 @@
 import email
 import imaplib
 import logging
+import socket
 import time
 import os
 
@@ -29,12 +30,27 @@ class MailSession:
         self.mail_server = mail_server
         self.user_name = user_name
         self.password = password
-        self.connection = imaplib.IMAP4_SSL(mail_server)
-        self.connection.login(user_name, password)
-        self.connection.select("inbox")
         self.configuration = configuration
         self.mail_queue_cache = MailQueue()
         self.mails_index = None
+        self.__login__()
+
+    def __login__(self):
+        self.connection = imaplib.IMAP4_SSL(self.mail_server)
+        self.connection.login(self.user_name, self.password)
+        self.connection.select("inbox")
+
+    def __fetch_mail__(self, mail_index):
+        for index in range(0, 3):
+            try:
+                ret, data = self.connection.fetch(mail_index, '(RFC822)')
+                break
+            except BaseException as e:
+                # Reconnect IMAP connection if failed to fetch mail
+                logging.error(e)
+                self.__login__()
+
+        return ret, data
 
     def fetch_all_mail_index(self):
         nums = None
@@ -123,20 +139,23 @@ class MailSession:
 
                 if temp_mail_eml is None or temp_mail_eml.mail is None:
                     try:
-                        ret, data = self.connection.fetch(temp_mail_index, '(RFC822)')
-                    except:
+                        ret, data = self.__fetch_mail__(temp_mail_index)
+
+                        logging.debug("%s data[0]: %s" % (str(temp_mail_index), str(data[0])))
+
+                        if data[0] is not None:
+                            temp_mail = email.message_from_bytes(data[0][1])
+
+                            if temp_mail_eml is None:
+                                temp_mail_eml = MailEML(mail=temp_mail)
+                                self.mail_queue_cache.enqueue(temp_mail_index, temp_mail_eml)
+                            elif temp_mail_eml.mail is None:
+                                temp_mail_eml.mail = temp_mail
+                    except socket.gaierror as e:
+                        logging.error(e)
+                    except BaseException as e:
+                        logging.error(e)
                         logging.debug("No new emails to read.")
-
-                    logging.debug("%s data[0]: %s" % (str(temp_mail_index), str(data[0])))
-
-                    if data[0] is not None:
-                        temp_mail = email.message_from_bytes(data[0][1])
-
-                        if temp_mail_eml is None:
-                            temp_mail_eml = MailEML(mail=temp_mail)
-                            self.mail_queue_cache.enqueue(temp_mail_index, temp_mail_eml)
-                        elif temp_mail_eml.mail is None:
-                            temp_mail_eml.mail = temp_mail
 
                 if temp_mail_eml is not None and temp_load_mail_amount != 0:
                     temp_mails[temp_mail_index] = temp_mail_eml
@@ -165,10 +184,12 @@ class MailSession:
         subject = Utils.validate_file_name(mail_eml.subject)
         folder_name = download_folder
 
-        if self.configuration.download_in_different_folder:
-            folder_name = Utils.time_tuple_to_number(mail_eml.receive_time_raw) + \
-                          '-' + \
-                          subject[0:20]
+        if not self.configuration.download_in_same_folder:
+            if self.configuration.download_folder_time_prefix:
+                folder_name = Utils.time_tuple_to_number(mail_eml.receive_time_raw) + '-' + subject[0:20]
+            else:
+                folder_name = subject[0:20]
+
             folder_name = os.path.join(download_folder, folder_name)
 
         attach_index = 0
@@ -189,8 +210,7 @@ class MailSession:
 
             attach_index = attach_index + 1
 
-            if not self.configuration.download_in_different_folder:
-                # filename = subject[0:40] + filename
+            if self.configuration.download_in_same_folder:
                 filename = subject + "." + filename.split(".")[-1]
 
             if not os.path.exists(folder_name):

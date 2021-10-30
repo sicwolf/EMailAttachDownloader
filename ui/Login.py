@@ -1,7 +1,11 @@
+import datetime
 import logging
+import re
 import time
 import tkinter as tk
+import webbrowser
 from tkinter import messagebox as mb, ttk
+from tkinter import Text as tx
 from tkinter.filedialog import askdirectory
 from tkinter.ttk import Progressbar
 
@@ -18,7 +22,7 @@ class Login(GUI):
         self.configuration = configuration
         self.window.iconbitmap(self.configuration.app_icon_file)
 
-        self.mail_amount_one_page = 80
+        self.mail_amount_one_page = self.configuration.mail_header_amount
 
         self.label_addr_width = 60
         self.label_addr_height = 25
@@ -135,14 +139,30 @@ class Login(GUI):
         self.operationMenu.add_command(label="退出", command=self.quit_clicked)
         self.menuBar.add_cascade(label="操作", menu=self.operationMenu)
 
-        # self.configMenu = tk.Menu(self.menuBar, tearoff=0)
+        self.configMenu = tk.Menu(self.menuBar, tearoff=0)
         # self.configMenu.add_command(label="显示设置", command=self.display_config_clicked)
         # self.configMenu.add_command(label="下载设置", command=self.download_config_clicked)
-        # self.menuBar.add_cascade(label="设置", menu=self.configMenu)
+        self.config_download_in_same_folder = tk.BooleanVar()
+        self.config_download_in_same_folder.set(self.configuration.download_in_same_folder)
+        self.configMenu.add_checkbutton(label="附件下载到相同路径下",
+                                        onvalue=True,
+                                        offvalue=False,
+                                        variable=self.config_download_in_same_folder,
+                                        command=self.download_folder_config_clicked)
+        self.config_time_prefix_folder = tk.BooleanVar()
+        self.config_time_prefix_folder.set(self.configuration.download_folder_time_prefix)
+        self.configMenu.add_checkbutton(label="下载子路径带时间戳",
+                                        onvalue=True,
+                                        offvalue=False,
+                                        variable=self.config_time_prefix_folder,
+                                        command=self.time_prefix_folder_clicked)
+
+        self.menuBar.add_cascade(label="设置", menu=self.configMenu)
 
         self.helpMenu = tk.Menu(self.menuBar, tearoff=0)
         # self.helpMenu.add_command(label="帮助", command=self.help_clicked)
         # self.helpMenu.add_separator()
+        self.helpMenu.add_command(label="反馈", command=self.feedback_clicked)
         self.helpMenu.add_command(label="关于", command=self.about_clicked)
         self.menuBar.add_cascade(label="帮助", menu=self.helpMenu)
 
@@ -335,6 +355,10 @@ class Login(GUI):
             self.__notify_configuration()
             self.current_save_folder.set(tmp_download_folder)
 
+    def feedback_clicked(self):
+        # mb.showinfo("反馈", self.configuration.app_name + ' ' + self.configuration.app_version)
+        webbrowser.open(self.configuration.feedback_link)
+
     def about_clicked(self):
         mb.showinfo("关于", self.configuration.app_name + ' ' + self.configuration.app_version)
 
@@ -344,42 +368,45 @@ class Login(GUI):
     def display_config_clicked(self):
         mb.showinfo("显示设置", "电子邮件附件下载器显示设置\n即将呈现！")
 
-    def download_config_clicked(self):
-        mb.showinfo("下载设置", "电子邮件附件下载器下载设置\n即将呈现！")
+    def download_folder_config_clicked(self):
+        self.configuration.download_in_same_folder = self.config_download_in_same_folder.get()
+        self.__notify_configuration()
+
+    def time_prefix_folder_clicked(self):
+        self.configuration.download_folder_time_prefix = self.config_time_prefix_folder.get()
+        self.__notify_configuration()
 
     def switch_clicked(self):
         mb.showinfo("更换邮箱", "电子邮件附件下载器更换邮箱操作\n即将呈现！")
 
     def download_selected_clicked(self):
-        # mb.showinfo("下载附件", "电子邮件附件下载器下载附件操作\n即将呈现！")
-
         download_flag = CommonMSG.DOWNLOAD_FLAG_LAST_NUMBER
         selected_items = self.tree_inbox.selection()
 
         if len(selected_items) > self.configuration.download_mail_number:
             mb.showinfo("提示",
                         "一次最多下载" + str(self.configuration.download_mail_number) + "封邮件的附件，请减少选中邮件数量。")
+        else:
+            selected_mails_index = []
+            current_display_mails_keys = list(self.current_display_mails.keys())
 
-        selected_mails_index = []
-        current_display_mails_keys = list(self.current_display_mails.keys())
+            for selected_item in selected_items:
+                selected_item_index_str = selected_item.split('I')[1]
+                selected_item_index = int(selected_item_index_str, 16) - 1
+                selected_mail_index = current_display_mails_keys[selected_item_index]
+                selected_mails_index.append(selected_mail_index)
 
-        for selected_item in selected_items:
-            selected_item_index_str = selected_item.split('I')[1]
-            selected_item_index = int(selected_item_index_str, 16) - 1
-            selected_mail_index = current_display_mails_keys[selected_item_index]
-            selected_mails_index.append(selected_mail_index)
+            download_message = DownloadMSG(self.get_new_msg_number(),
+                                           download_flag,
+                                           session_index=-1,
+                                           download_mail_number=self.configuration.download_mail_number,
+                                           download_since_time=None,
+                                           download_till_time=None,
+                                           download_mails_index=selected_mails_index,
+                                           recall=None)
 
-        download_message = DownloadMSG(self.get_new_msg_number(),
-                                       download_flag,
-                                       session_index=-1,
-                                       download_mail_number=self.configuration.download_mail_number,
-                                       download_since_time=None,
-                                       download_till_time=None,
-                                       download_mails_index=selected_mails_index,
-                                       recall=None)
-
-        if self.worker.put_message(download_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
-            mb.showinfo("提示", "系统繁忙，请稍后重试。")
+            if self.worker.put_message(download_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
+                mb.showinfo("提示", "系统繁忙，请稍后重试。")
 
     def download_clicked(self):
         # mb.showinfo("下载附件", "电子邮件附件下载器下载附件操作\n即将呈现！")
@@ -424,6 +451,7 @@ class Login(GUI):
 
             # Reorder mails by received time.
             # It is a bug in QQ mail service, the mail index order does not whole match the received time order.
+            # TODO: mail index calculation need to be optimized.
             temp_current_display_mails = {}
             for mail_item in self.received_mails.items():
                 if mail_item[1].receive_time is not None:
@@ -432,12 +460,23 @@ class Login(GUI):
                     temp_current_display_mails[temp_time_stamp] = mail_item[1]
                 else:
                     temp_mail_index_bytes = mail_item[0]
-                    temp_mail_index_int = int.from_bytes(temp_mail_index_bytes, 'big') - 1
-                    temp_mail_index_bytes = int.to_bytes(temp_mail_index_int, 4, 'big')
-                    temp_receive_time = self.received_mails[temp_mail_index_bytes].receive_time
-                    temp_time_stamp_array = time.strptime(temp_receive_time, '%Y/%m/%d %H:%M:%S')
-                    temp_time_stamp = time.mktime(temp_time_stamp_array) + 1
-                    temp_current_display_mails[temp_time_stamp] = mail_item[1]
+                    temp_mail_index_int = int.from_bytes(temp_mail_index_bytes, 'big')
+                    first_mail_index_int = int.from_bytes(list(self.received_mails.keys())[0], 'big')
+
+                    if temp_mail_index_int == first_mail_index_int:
+                        temp_time_stamp = int(time.time())
+                        mail_item[1].receive_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(temp_time_stamp))
+                        temp_current_display_mails[temp_time_stamp] = mail_item[1]
+                    elif temp_mail_index_int > 0:
+                        next_elder_mail_index_int = temp_mail_index_int + 1
+                        next_elder_mail_index_int_bytes = int.to_bytes(next_elder_mail_index_int,
+                                                                       len(temp_mail_index_bytes),
+                                                                       'big')
+                        temp_receive_time = self.received_mails[next_elder_mail_index_int_bytes].receive_time
+                        temp_time_stamp_array = time.strptime(temp_receive_time, '%Y/%m/%d %H:%M:%S')
+                        temp_time_stamp = time.mktime(temp_time_stamp_array) - 1
+                        mail_item[1].receive_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(temp_time_stamp))
+                        temp_current_display_mails[temp_time_stamp] = mail_item[1]
 
             sorted_keys = sorted(temp_current_display_mails.keys(), reverse=True)
 
@@ -450,13 +489,19 @@ class Login(GUI):
             self.window.bind(sequence="<Control-A>", func=self.ctl_sft_a_clicked)
             self.window.bind(sequence="<Control-Y>", func=self.ctl_sft_y_clicked)
         elif handle_result == CommonMSG.ERR_CODE_WRONG_SERVER_NAME:
-            mb.showerror("提示", "错误的邮箱域名。")
+            mb.showerror("错误的邮箱域名", "请输入正确的邮箱地址。")
         elif handle_result == CommonMSG.ERR_CODE_WRONG_USER_NAME_OR_PASSWORD:
-            mb.showerror("提示", "错误的用户名或密码。")
+            if self.str_server in self.configuration.auth_code_links:
+                link = self.configuration.auth_code_links[self.str_server]
+                result = mb.askquestion("请使用正确邮箱地址和授权码登录", "打开授权码获取方法帮助网页？\n" + link)
+                if result == "yes":
+                    webbrowser.open(link)
+            else:
+                mb.showerror("请使用正确邮箱地址和授权码登录", "请访问邮箱官网查找授权码获取方法")
         elif handle_result == CommonMSG.ERR_CODE_CONNECTION_TIMEOUT:
-            mb.showerror("提示", "邮件服务器连接超时。")
+            mb.showerror("邮件服务器连接超时", "请检查计算机网络连接是否正常。")
         elif handle_result == CommonMSG.ERR_CODE_UNKNOWN_ERROR:
-            mb.showerror("提示", "系统未知错误。")
+            mb.showerror("错误", "系统未知错误。")
 
     def load_mail_recall(self, mails):
         logging.debug(self.__class__.__name__ + '.load_mail_recall calling')

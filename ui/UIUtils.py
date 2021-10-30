@@ -16,3 +16,9 @@ def correct_subject(subject):
     pattern = r"[\\\n]"
     new_subject = re.sub(pattern, "", subject)
     return new_subject
+
+def replace_minus_as_slash(subject):
+    pattern = r"[-]"
+    new_subject = re.sub(pattern, "/", subject)
+    return new_subject
+
