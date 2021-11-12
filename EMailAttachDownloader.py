@@ -26,7 +26,7 @@ if __name__ == "__main__":
     configuration = Configuration()
     logging.info(configuration.app_name + ' ' + configuration.app_version)
 
-    worker = Worker()
+    worker = Worker(configuration)
     worker.start()
 
     login_window = Login(worker, configuration)

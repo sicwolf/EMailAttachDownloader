@@ -18,7 +18,7 @@ def get_default_download_path():
 class Configuration:
     def __init__(self):
         self.app_name = "电子邮件附件下载器"
-        self.app_version = "V1.0.3"
+        self.app_version = "V1.0.4"
         self.display_flag_mail_with_attach = True
         self.app_icon_file = 'resource\\app2.ico'
         self.download_flag_time = False
@@ -31,7 +31,8 @@ class Configuration:
         self.download_folder = get_default_download_path()
         self.download_in_same_folder = False
         self.download_folder_time_prefix = False
-        self.feedback_link = "https://github.com/sicwolf/EMailAttachDownloader/issues"
+        self.feedback_link_github = "https://github.com/sicwolf/EMailAttachDownloader/issues"
+        self.feedback_link_gitee = "https://gitee.com/deepwater/EMailAttachDownloader/issues"
         self.auth_code_links = {"imap.qq.com": "https://service.mail.qq.com/cgi-bin/help?subtype=1&&no=1001607&&id=28",
                                 "imap.163.com": "http://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2cda80145a1742516",
                                 "imap.gmail.com": "https://support.google.com/accounts/answer/185833",

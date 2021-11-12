@@ -162,7 +162,11 @@ class Login(GUI):
         self.helpMenu = tk.Menu(self.menuBar, tearoff=0)
         # self.helpMenu.add_command(label="帮助", command=self.help_clicked)
         # self.helpMenu.add_separator()
-        self.helpMenu.add_command(label="反馈", command=self.feedback_clicked)
+        submenu_feedback = tk.Menu(self.helpMenu, tearoff=0)
+        # self.helpMenu.add_command(label="反馈", command=self.feedback_clicked)
+        submenu_feedback.add_command(label="通过gitee反馈问题", command=self.feedback_clicked_gitee)
+        submenu_feedback.add_command(label="通过github反馈问题", command=self.feedback_clicked_github)
+        self.helpMenu.add_cascade(label="反馈", menu=submenu_feedback)
         self.helpMenu.add_command(label="关于", command=self.about_clicked)
         self.menuBar.add_cascade(label="帮助", menu=self.helpMenu)
 
@@ -355,9 +359,11 @@ class Login(GUI):
             self.__notify_configuration()
             self.current_save_folder.set(tmp_download_folder)
 
-    def feedback_clicked(self):
-        # mb.showinfo("反馈", self.configuration.app_name + ' ' + self.configuration.app_version)
-        webbrowser.open(self.configuration.feedback_link)
+    def feedback_clicked_github(self):
+        webbrowser.open(self.configuration.feedback_link_github)
+
+    def feedback_clicked_gitee(self):
+        webbrowser.open(self.configuration.feedback_link_gitee)
 
     def about_clicked(self):
         mb.showinfo("关于", self.configuration.app_name + ' ' + self.configuration.app_version)

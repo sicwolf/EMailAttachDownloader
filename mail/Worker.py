@@ -11,12 +11,12 @@ from message.message import CommonMSG
 
 class Worker(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, configuration):
         threading.Thread.__init__(self)
         self.queue = queue.Queue(3)
         self.thread_stop = False
         self.mail_session = None
-        self.configuration = None
+        self.configuration = configuration
 
     def run(self):
         while not self.thread_stop:
@@ -79,7 +79,9 @@ class Worker(threading.Thread):
         try:
             self.mail_session = MailSession(server_name,
                                             user_name,
-                                            password)
+                                            password,
+                                            configuration=self.configuration)
+            # mails_index = self.mail_session.fetch_all_mail_index()
         except imaplib.IMAP4.error as e:
             logging.error(e)
             self.mail_session = None
@@ -97,10 +99,17 @@ class Worker(threading.Thread):
             self.mail_session = None
             return_status = CommonMSG.ERR_CODE_UNKNOWN_ERROR
 
-
-
         if return_status == CommonMSG.ERR_CODE_SUCCESSFUL:
-            mails_index = self.mail_session.fetch_all_mail_index()
+            try:
+                mails_index = self.mail_session.fetch_all_mail_index()
+            except imaplib.IMAP4.error as e:
+                logging.error(e)
+                self.mail_session = None
+                return_status = CommonMSG.ERR_CODE_WRONG_USER_NAME_OR_PASSWORD
+            except BaseException as e:
+                logging.error(e)
+                self.mail_session = None
+                return_status = CommonMSG.ERR_CODE_UNKNOWN_ERROR
 
         logging.debug("Worker.login called")
         return return_status, mails_index

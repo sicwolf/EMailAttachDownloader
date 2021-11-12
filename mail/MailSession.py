@@ -38,6 +38,18 @@ class MailSession:
     def __login__(self):
         self.connection = imaplib.IMAP4_SSL(self.mail_server)
         self.connection.login(self.user_name, self.password)
+
+        # Some 163 mail user must send 'ID' command to mail server, otherwise, 163 mail service do not accept the login
+        # request with error info 'command SEARCH illegal in state AUTH, only allowed in states SELECTED'.
+        if self.user_name.find('163.com') > -1 or self.user_name.find('163.COM') > -1:
+            imaplib.Commands['ID'] = ('AUTH')
+            args = ("name", self.user_name.split("@")[0],
+                    "contact", self.user_name,
+                    "version", self.configuration.app_version,
+                    "vendor", "EMailAttachDownloader")
+            self.connection._simple_command('ID', '("' + '" "'.join(args) + '")')
+
+        # select inbox folder
         self.connection.select("inbox")
 
     def __fetch_mail__(self, mail_index):
