@@ -27,26 +27,13 @@ To be added.
 
 #### Version
 
-V1.0.3  
+V1.0.4  
 Main features:  
 1) Download the attachments in the latest or selected 20 emails.  
 2) Download folder selection and configuration.  
 3) Feedback link and authentication code help link.  
 4) Only Windows OS supported.  
 5) Only Chinese language supported.  
-
-Fixed bugs:  
-1) IMAP connection lost.  
-2) The subject of notification mail from some mail service provider can't be decoded.  
-
-V1.0.2  
-Fixed bugs：  
-1) The subject of notification mail from enterprise wechat is shown as garbled characters.  
-2) Wrong time order of shown mail.  
-3) The subject of some mail is not shown.  
-
-V1.0.1  
-Support downloading the attachments in the latest 20 emails or the selected emails. Only windows and Chinese version supported.
 
 #### Develop environment
 
