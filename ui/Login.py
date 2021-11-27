@@ -1,6 +1,7 @@
 import datetime
 import logging
 import re
+import threading
 import time
 import tkinter as tk
 import webbrowser
@@ -11,7 +12,7 @@ from tkinter.ttk import Progressbar
 
 import mail.Utils as Utils
 import ui.UIUtils as UIUtils
-from message.message import LoginMSG, CommonMSG, DownloadMSG, UpdateConfigMSG, LoadMailMSG
+from message.message import LoginMSG, CommonMSG, DownloadMSG, UpdateConfigMSG, LoadMailMSG, StopMSG, LoadMailFullMSG
 from ui.GUI import GUI
 
 
@@ -21,9 +22,10 @@ class Login(GUI):
         GUI.__init__(self, worker, 375, 140)
         self.configuration = configuration
         self.window.iconbitmap(self.configuration.app_icon_file)
-
+        self.attachment_logo = tk.PhotoImage(file=self.configuration.attach_icon_file)
         self.mail_amount_one_page = self.configuration.mail_header_amount
 
+        # GUI attributes
         self.label_addr_width = 60
         self.label_addr_height = 25
         self.entry_addr_width = 260
@@ -104,10 +106,14 @@ class Login(GUI):
             columns=('attachment', 'sender', 'receiver', 'receive_time', 'subject'),
             show="headings",
             yscrollcommand=self.scrollBar_inbox.set)
-        self.tree_inbox.column('attachment', minwidth=self.tree_inbox_attach_width, width=self.tree_inbox_attach_width, anchor='center', stretch=tk.NO)
-        self.tree_inbox.column('sender', minwidth=self.tree_inbox_sender_width, width=self.tree_inbox_sender_width, anchor='w', stretch=tk.NO)
-        self.tree_inbox.column('receiver', minwidth=self.tree_inbox_receiver_width, width=self.tree_inbox_receiver_width, anchor='w', stretch=tk.NO)
-        self.tree_inbox.column('receive_time', minwidth=self.tree_inbox_receive_time_width, width=self.tree_inbox_receive_time_width, anchor='center', stretch=tk.NO)
+        self.tree_inbox.column('attachment', minwidth=self.tree_inbox_attach_width, width=self.tree_inbox_attach_width,
+                               anchor='center', stretch=tk.NO)
+        self.tree_inbox.column('sender', minwidth=self.tree_inbox_sender_width, width=self.tree_inbox_sender_width,
+                               anchor='w', stretch=tk.NO)
+        self.tree_inbox.column('receiver', minwidth=self.tree_inbox_receiver_width,
+                               width=self.tree_inbox_receiver_width, anchor='w', stretch=tk.NO)
+        self.tree_inbox.column('receive_time', minwidth=self.tree_inbox_receive_time_width,
+                               width=self.tree_inbox_receive_time_width, anchor='center', stretch=tk.NO)
         self.tree_inbox.column('subject', minwidth=175, width=175, anchor='w')
         self.tree_inbox.heading('attachment', text='附件')
         self.tree_inbox.heading('sender', text='发件人')
@@ -191,6 +197,8 @@ class Login(GUI):
         self.clean_inbox_control()
 
         self.display_status = GUI.DISPLAY_LOGIN
+        self.current_full_load_mail_index = 0
+        self.periodic_download_timer = None
 
     def __layout_login(self):
         self.window.update()
@@ -305,6 +313,47 @@ class Login(GUI):
                                      width=progress_download_width, height=progress_download_height)
         self.label_percent.place(x=label_percent_place_x, y=label_percent_place_y,
                                  width=label_percent_width, height=label_percent_height)
+
+    def __periodic_load_mail(self):
+        if self.display_status == GUI.DISPLAY_INBOX:
+            if self.current_full_load_mail_index == self.mail_amount_one_page or \
+                    self.current_full_load_mail_index == len(self.mails_index):
+                mb.showinfo("提示", "所有邮件已下载全文！")
+            else:
+                keys = list(self.current_display_mails.keys())
+                mail_index = keys[self.current_full_load_mail_index]
+                full_load_message = LoadMailFullMSG(self.get_new_msg_number(),
+                                                    mail_index,
+                                                    self.current_full_load_mail_index,
+                                                    recall=self.load_mail_full_recall)
+
+                if self.worker.put_message(full_load_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
+                    mb.showinfo("提示", "系统繁忙，请稍后重试。")
+                else:
+                    self.current_full_load_mail_index += 1
+
+                # self.__start_periodic_load_timer()
+        # else:
+        #     self.__start_periodic_load_timer()
+
+    def load_mail_full_recall(self, mail_index_gui, has_attach):
+        tree_inbox_children = self.tree_inbox.get_children()
+        current_child = tree_inbox_children[mail_index_gui]
+        current_item = self.tree_inbox.item(current_child)
+
+        if has_attach:
+            current_item['values'][0] = "*"
+        # current_item['values'][0] = self.attachment_logo
+        self.tree_inbox.item(current_child, values=current_item['values'], image=self.attachment_logo)
+        self.__periodic_load_mail()
+
+    def __start_periodic_load_timer(self):
+        self.periodic_download_timer = threading.Timer(0.1, self.__periodic_load_mail)
+        self.periodic_download_timer.start()
+
+    def __stop_periodic_load_timer(self):
+        if self.periodic_download_timer is not None:
+            self.periodic_download_timer.cancel()
 
     def ctl_sft_a_clicked(self, ke):
         # mb.showinfo("提示", ke.keysym + " " + ke.char + " " + str(ke.keycode))
@@ -456,7 +505,7 @@ class Login(GUI):
             self.received_mails = mails_eml
 
             # Reorder mails by received time.
-            # It is a bug in QQ mail service, the mail index order does not whole match the received time order.
+            # It is a bug in QQ mail service, the mail index order does not match the received time order.
             # TODO: mail index calculation need to be optimized.
             temp_current_display_mails = {}
             for mail_item in self.received_mails.items():
@@ -494,6 +543,7 @@ class Login(GUI):
             self.window.bind("<Configure>", self.resize_occurred)
             self.window.bind(sequence="<Control-A>", func=self.ctl_sft_a_clicked)
             self.window.bind(sequence="<Control-Y>", func=self.ctl_sft_y_clicked)
+            self.__periodic_load_mail()
         elif handle_result == CommonMSG.ERR_CODE_WRONG_SERVER_NAME:
             mb.showerror("错误的邮箱域名", "请输入正确的邮箱地址。")
         elif handle_result == CommonMSG.ERR_CODE_WRONG_USER_NAME_OR_PASSWORD:
@@ -527,7 +577,9 @@ class Login(GUI):
             self.tree_inbox.insert(
                 '',
                 loop,
-                values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject))
+                values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject)
+                # image=self.attachment_logo
+            )
             loop = loop + 1
 
     def __notify_configuration(self):
@@ -537,16 +589,16 @@ class Login(GUI):
         if self.worker.put_message(update_config_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
             mb.showinfo("提示", "系统繁忙，请稍后重试。")
 
-    def __load_mail(self, start_message_index, load_mail_amount, ascending=False):
-        load_mail_message = LoadMailMSG(
-            self.get_new_msg_number(),
-            start_message_index,
-            load_mail_amount,
-            ascending=ascending,
-            recall=self.load_mail_recall)
-
-        if self.worker.put_message(load_mail_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
-            mb.showinfo("提示", "系统繁忙，请稍后重试。")
+    # def __load_mail(self, start_message_index, load_mail_amount, ascending=False):
+    #     load_mail_message = LoadMailMSG(
+    #         self.get_new_msg_number(),
+    #         start_message_index,
+    #         load_mail_amount,
+    #         ascending=ascending,
+    #         recall=self.load_mail_recall)
+    #
+    #     if self.worker.put_message(load_mail_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
+    #         mb.showinfo("提示", "系统繁忙，请稍后重试。")
 
     def start_login_progress(self):
         self.disable_input()
@@ -579,7 +631,7 @@ class Login(GUI):
 
         self.progress_login.place_forget()
         self.button_login.place(x=button_login_place_x, y=button_login_place_y,
-                                  width=self.button_login_width, height=self.button_login_height)
+                                width=self.button_login_width, height=self.button_login_height)
 
     def disable_input(self):
         self.entry_addr.config(state='disabled')
@@ -608,3 +660,7 @@ class Login(GUI):
         self.window.config(menu=self.menuBar)
         self.__layout_inbox()
         self.display_status = GUI.DISPLAY_INBOX
+
+    def quit_clicked(self):
+        self.__stop_periodic_load_timer()
+        GUI.quit_clicked(self)

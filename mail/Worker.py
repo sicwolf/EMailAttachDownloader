@@ -13,10 +13,10 @@ class Worker(threading.Thread):
 
     def __init__(self, configuration):
         threading.Thread.__init__(self)
-        self.queue = queue.Queue(3)
         self.thread_stop = False
         self.mail_session = None
         self.configuration = configuration
+        self.queue = queue.Queue(configuration.worker_queue_size)
 
     def run(self):
         while not self.thread_stop:
@@ -47,22 +47,35 @@ class Worker(threading.Thread):
                 logging.info("Worker.run: MSG_TYPE_MAIL_DOWNLOAD received")
                 message.set_status(CommonMSG.MSG_STATUS_HANDLING)
                 self.download(message)
+                message.set_status(CommonMSG.MSG_STATUS_COMPLETED)
             elif message.message_type == CommonMSG.MSG_TYPE_CONFIG_UPDATE:
                 logging.info("Worker.run: MSG_TYPE_CONFIG_UPDATE received")
                 message.set_status(CommonMSG.MSG_STATUS_HANDLING)
                 self.configuration = message.configuration
                 self.mail_session.set_configuration(self.configuration)
+                message.set_status(CommonMSG.MSG_STATUS_COMPLETED)
             elif message.message_type == CommonMSG.MSG_TYPE_MAIL_LOAD:
                 logging.info("Worker.run: MSG_TYPE_MAIL_LOAD received")
                 message.set_status(CommonMSG.MSG_STATUS_HANDLING)
                 mails = self.mail_session.load_mail(message.start_mail_index, message.load_mail_amount)
                 message.recall(mails)
+                message.set_status(CommonMSG.MSG_STATUS_COMPLETED)
+            elif message.message_type == CommonMSG.MSG_TYPE_MAIL_LOAD_FULL:
+                logging.info("Worker.run: MSG_TYPE_MAIL_LOAD_FULL received")
+                message.set_status(CommonMSG.MSG_STATUS_HANDLING)
+                mails = self.mail_session.load_mail(message.mail_index, 1)
+                temp_mail_element = mails[message.mail_index]
 
-    def put_message(self, message, block=True, timeout=None):
+                # if temp_mail_element is not None:
+                has_attach = temp_mail_element.check_attachment_existence()
+                message.recall(message.mail_index_gui, has_attach)
+                message.set_status(CommonMSG.MSG_STATUS_COMPLETED)
+
+    def put_message(self, message, block=False, timeout=None):
         logging.debug("Worker.put_message calling")
         return_status = CommonMSG.ERR_CODE_SUCCESSFUL
 
-        if self.queue.qsize() > 100:
+        if self.queue.qsize() == self.configuration.worker_queue_size:
             return_status = CommonMSG.ERR_CODE_QUEUE_FULL
         else:
             self.queue.put(message, block, timeout)

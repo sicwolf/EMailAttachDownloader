@@ -21,11 +21,13 @@ class Configuration:
         self.app_version = "V1.0.4"
         self.display_flag_mail_with_attach = True
         self.app_icon_file = 'resource\\app2.ico'
+        self.attach_icon_file = 'resource\\paperclipreal.gif'
         self.download_flag_time = False
         self.download_flag_last_mails = True
         self.download_since_time = time.localtime(time.time() - 10000)
         self.download_till_time = time.localtime(time.time())
         self.mail_header_amount = 60
+        self.worker_queue_size = 30
         self.download_mail_number = 20
         self.download_default_folder = get_default_download_path()
         self.download_folder = get_default_download_path()

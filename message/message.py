@@ -23,6 +23,7 @@ class CommonMSG:
     # Mail related message
     MSG_TYPE_MAIL_DOWNLOAD = 0x030001
     MSG_TYPE_MAIL_LOAD = 0x030002
+    MSG_TYPE_MAIL_LOAD_FULL = 0x030003
 
     # Configuration related message
     MSG_TYPE_CONFIG_UPDATE = 0x040001
@@ -57,7 +58,6 @@ class CommonMSG:
 
 
 class LoginMSG(CommonMSG):
-    need_response = True
 
     def __init__(self, message_number, mail_server, mail_address, password, load_header_amount, recall=None):
         CommonMSG.__init__(self, message_number, recall=recall)
@@ -100,16 +100,23 @@ class DownloadMSG(CommonMSG):
         self.error_code = CommonMSG.ERR_CODE_SUCCESSFUL
 
 
+class LoadMailFullMSG(CommonMSG):
+
+    def __init__(self, message_number, mail_index, mail_index_gui, recall=None):
+        CommonMSG.__init__(self, message_number, recall=recall)
+        self.message_type = CommonMSG.MSG_TYPE_MAIL_LOAD_FULL
+        self.mail_index = mail_index
+        self.mail_index_gui = mail_index_gui
+
+
 class LoadMailMSG(CommonMSG):
 
     def __init__(self, message_number, start_mail_index, load_mail_amount, ascending=False, recall=None):
-        CommonMSG.__init__(self, message_number)
+        CommonMSG.__init__(self, message_number, recall=recall)
         self.message_type = CommonMSG.MSG_TYPE_MAIL_LOAD
         self.start_mail_index = start_mail_index
         self.load_mail_amount = load_mail_amount
         self.ascending = ascending
-        self.need_response = True
-        self.recall = recall
 
 
 class StopMSG(CommonMSG):
@@ -117,4 +124,3 @@ class StopMSG(CommonMSG):
     def __init__(self, message_number):
         CommonMSG.__init__(self, message_number)
         self.message_type = CommonMSG.MSG_TYPE_THREAD_STOP
-        self.need_response = False

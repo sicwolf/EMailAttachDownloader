@@ -1,10 +1,11 @@
 import tkinter as tk
+from abc import ABC, abstractmethod
 
 from message.message import StopMSG
 from ui.UIUtils import center_window
 
 
-class GUI(object):
+class GUI(ABC):
     DISPLAY_LOGIN = 0
     DISPLAY_INBOX = 1
 
@@ -43,10 +44,12 @@ class GUI(object):
         self.window.resizable(self.screen_width/2, self.screen_height/2)
         self.window.update()
 
+    # @abstractmethod
     def quit_clicked(self):
         self.window.destroy()
         stop_message = StopMSG(self.get_new_msg_number())
         self.worker.put_message(stop_message)
+        pass
 
     def quit(self):
         self.window.destroy()
