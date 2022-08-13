@@ -18,7 +18,7 @@ def get_default_download_path():
 class Configuration:
     def __init__(self):
         self.app_name = "电子邮件附件下载器"
-        self.app_version = "V1.0.4"
+        self.app_version = "V1.0.5"
         self.display_flag_mail_with_attach = True
         self.app_icon_file = 'resource\\app2.ico'
         self.attach_icon_file = 'resource\\paperclipreal.gif'
@@ -26,7 +26,7 @@ class Configuration:
         self.download_flag_last_mails = True
         self.download_since_time = time.localtime(time.time() - 10000)
         self.download_till_time = time.localtime(time.time())
-        self.mail_header_amount = 60
+        self.mail_header_amount = 80
         self.worker_queue_size = 30
         self.download_mail_number = 20
         self.download_default_folder = get_default_download_path()
@@ -35,10 +35,11 @@ class Configuration:
         self.download_folder_time_prefix = False
         self.feedback_link_github = "https://github.com/sicwolf/EMailAttachDownloader/issues"
         self.feedback_link_gitee = "https://gitee.com/deepwater/EMailAttachDownloader/issues"
-        self.auth_code_links = {"imap.qq.com": "https://service.mail.qq.com/cgi-bin/help?subtype=1&&no=1001607&&id=28",
-                                "imap.163.com": "http://help.mail.163.com/faqDetail.do?code=d7a5dc8471cd0c0e8b4b8f4f8e49998b374173cfe9171305fa1ce630d7f67ac2cda80145a1742516",
-                                "imap.gmail.com": "https://support.google.com/accounts/answer/185833",
-                                "imap.sohu.com": "https://blog.csdn.net/sicwolf/article/details/121050352"}
+        self.auth_code_links = {
+            "imap.qq.com": "https://service.mail.qq.com/cgi-bin/help?subtype=1&&no=1001607&&id=28",
+            "imap.163.com": "https://note.youdao.com/ynoteshare/index.html?id=f9fef46114fb922b45460f4f55d96853",
+            "imap.gmail.com": "https://support.google.com/accounts/answer/185833",
+            "imap.sohu.com": "https://blog.csdn.net/sicwolf/article/details/121050352"}
         self.status_recall = None
 
     def set_status_recall(self, status_recall):

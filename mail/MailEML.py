@@ -76,7 +76,7 @@ class MailEML:
         subject_raw = to_be_parsed.get("Subject")
         subject = email.header.decode_header(subject_raw)
 
-        if subject[0][1] is not None:
+        if subject[0][1] is not None and receiver is not None:
             # If encoding type is 'unknown-8bit', decode it as 'GB2312' by default. This is a bug of QQ mail service.
             # TODO: Check the encoding type in other fields of the mail, which country the mail service provider of
             #  sender is , so that the language can be guessed, use the majority encoding type of that language.
@@ -91,6 +91,11 @@ class MailEML:
                 subject_str = subject[0][0].decode('utf-8')
             else:
                 subject_str = subject[0][0].decode(subject[0][1])
+        elif receiver is None and '10000@qq.com' in self.sender_addr:
+            # If sender is 10000@qq.com and encoding type is 'unknown-8bit', decode it as 'GB2312' by default.
+            # This is a bug of QQ mail service.
+            logging.debug("unknown-8bit error: mail from " + str(self.sender_addr) + "at " + str(self.receive_time))
+            subject_str = subject[0][0].decode('GB2312')
         else:
             subject_str = subject[0][0]
 

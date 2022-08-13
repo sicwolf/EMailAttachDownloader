@@ -55,3 +55,28 @@ def get_server_from_email_address(input_str):
             str_server = 'imap.' + input_str.split('@')[1]
 
     return str_server
+
+
+def binary_mail_index_add(binary_mail_index, addend):
+    """add binary mail index with addend in bytes type
+
+    :param binary_mail_index: binary mail index in bytes type to be added，example: ‘1259’
+    :param addend: a number which is added to binary_mail_index.
+    :return: new binary mail index in bytes type，example: b'1260'
+    """
+    temp_binary_mail_index = None
+    int_mail_index = 0
+
+    if isinstance(binary_mail_index, bytes) and isinstance(addend, int):
+        bytes_number = len(binary_mail_index)
+
+        for byte_order in range(1, bytes_number + 1):
+            # current byte -> hex integer -> digit as ascii character -> dec integer
+            current_digit = int(chr(int(binary_mail_index[bytes_number - byte_order])))
+            int_mail_index = int_mail_index + (10 ** (byte_order - 1)) * current_digit
+
+        int_mail_index = int_mail_index + addend
+
+        temp_binary_mail_index = bytes(str(int_mail_index), 'ascii')
+
+    return temp_binary_mail_index

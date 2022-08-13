@@ -508,26 +508,45 @@ class Login(GUI):
             # It is a bug in QQ mail service, the mail index order does not match the received time order.
             # TODO: mail index calculation need to be optimized.
             temp_current_display_mails = {}
+
             for mail_item in self.received_mails.items():
+                # Check if mail item has receive time
                 if mail_item[1].receive_time is not None:
+                    # If mail item has receive time,
+                    # insert mail item into temp_current_display_mails with key as receive time
                     temp_time_stamp_array = time.strptime(mail_item[1].receive_time, '%Y/%m/%d %H:%M:%S')
                     temp_time_stamp = time.mktime(temp_time_stamp_array)
                     temp_current_display_mails[temp_time_stamp] = mail_item[1]
                 else:
+                    # If mail item has no receive time,
+                    # simulate its receive time as
                     temp_mail_index_bytes = mail_item[0]
                     temp_mail_index_int = int.from_bytes(temp_mail_index_bytes, 'big')
                     first_mail_index_int = int.from_bytes(list(self.received_mails.keys())[0], 'big')
 
+                    # check if the mail is the first mail
                     if temp_mail_index_int == first_mail_index_int:
+                        # if it is the first mail,
+                        # use the current time as the receive time.
+                        # although the receive time is wrong,
+                        # the mail could be sorted as the first item in temp_current_display_mails.
                         temp_time_stamp = int(time.time())
                         mail_item[1].receive_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(temp_time_stamp))
                         temp_current_display_mails[temp_time_stamp] = mail_item[1]
                     elif temp_mail_index_int > 0:
-                        next_elder_mail_index_int = temp_mail_index_int + 1
-                        next_elder_mail_index_int_bytes = int.to_bytes(next_elder_mail_index_int,
-                                                                       len(temp_mail_index_bytes),
-                                                                       'big')
-                        temp_receive_time = self.received_mails[next_elder_mail_index_int_bytes].receive_time
+                        # if it is not the first mail,
+                        # shall use the time when it is earlier than the receive time of next younger mail item
+                        # as its receive time
+                        # Call binary_mail_index_add to increase 1 for binary mail index
+                        next_younger_mail_index_int_bytes = Utils.binary_mail_index_add(temp_mail_index_bytes, 1)
+                        try:
+                            temp_receive_time = self.received_mails[next_younger_mail_index_int_bytes].receive_time
+                        except BaseException as e:
+                            # It is possible that next_younger_mail_index_int_bytes is wrong
+                            logging.error(e)
+                            logging.error("next_younger_mail_index_int_bytes: {}"
+                                          .format(next_younger_mail_index_int_bytes))
+                            continue
                         temp_time_stamp_array = time.strptime(temp_receive_time, '%Y/%m/%d %H:%M:%S')
                         temp_time_stamp = time.mktime(temp_time_stamp_array) - 1
                         mail_item[1].receive_time = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(temp_time_stamp))
