@@ -294,6 +294,6 @@ class MailSession:
             percent = int(100 * loop_index / mail_amount)
             self.configuration.status_recall(percent=percent)
 
-        self.configuration.status_recall("附件下载完成！", 100)
+        self.configuration.status_recall(status="附件下载完成！", percent=100)
 
         return emails

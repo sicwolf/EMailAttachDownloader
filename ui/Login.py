@@ -197,7 +197,7 @@ class Login(GUI):
         self.clean_inbox_control()
 
         self.display_status = GUI.DISPLAY_LOGIN
-        self.current_full_load_mail_index = 0
+        self.current_full_load_mail_amount = 0
         self.periodic_download_timer = None
 
     def __layout_login(self):
@@ -315,22 +315,34 @@ class Login(GUI):
                                  width=label_percent_width, height=label_percent_height)
 
     def __periodic_load_mail(self):
+        """ Load the full text and attachment in loaded mail from mail server
+
+            This function is used to load the full text and attachment in loaded mail from mail server,
+            it only be called in two scenarios:
+            1, after login successfully, it is called in login_recall by Worker.
+            2, after LoadMailFullMSG handled completely by Worker, is called in load_mail_full_recall by Worker.
+        :return: NA
+        """
         if self.display_status == GUI.DISPLAY_INBOX:
-            if self.current_full_load_mail_index == self.mail_amount_one_page or \
-                    self.current_full_load_mail_index == len(self.mails_index):
-                mb.showinfo("提示", "所有邮件已下载全文！")
+            self.update_status_recall(status="服务器邮件附件加载中...")
+            # Check whether full load mail amount equals to the mail amount in one page or the length of mails index,
+            # this check result is used to judge whether full load finished.
+            if self.current_full_load_mail_amount == self.mail_amount_one_page or \
+                    self.current_full_load_mail_amount == len(self.mails_index):
+                self.update_status_recall(status="服务器邮件附件已加载")
+                mb.showinfo("提示", "已完成服务器邮件附件的加载！")
             else:
                 keys = list(self.current_display_mails.keys())
-                mail_index = keys[self.current_full_load_mail_index]
+                mail_index = keys[self.current_full_load_mail_amount]
                 full_load_message = LoadMailFullMSG(self.get_new_msg_number(),
                                                     mail_index,
-                                                    self.current_full_load_mail_index,
+                                                    self.current_full_load_mail_amount,
                                                     recall=self.load_mail_full_recall)
 
                 if self.worker.put_message(full_load_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
                     mb.showinfo("提示", "系统繁忙，请稍后重试。")
                 else:
-                    self.current_full_load_mail_index += 1
+                    self.current_full_load_mail_amount += 1
 
                 # self.__start_periodic_load_timer()
         # else:
@@ -347,13 +359,14 @@ class Login(GUI):
         self.tree_inbox.item(current_child, values=current_item['values'], image=self.attachment_logo)
         self.__periodic_load_mail()
 
-    def __start_periodic_load_timer(self):
-        self.periodic_download_timer = threading.Timer(0.1, self.__periodic_load_mail)
-        self.periodic_download_timer.start()
-
-    def __stop_periodic_load_timer(self):
-        if self.periodic_download_timer is not None:
-            self.periodic_download_timer.cancel()
+    # def __start_periodic_load_timer(self):
+    #     self.periodic_download_timer = threading.Timer(0.1, self.__periodic_load_mail)
+    #     self.periodic_download_timer.start()
+    #
+    # def __stop_periodic_load_timer(self):
+    #     if self.periodic_download_timer is not None:
+    #         self.periodic_download_timer.cancel()
+    #         self.periodic_download_timer = None
 
     def ctl_sft_a_clicked(self, ke):
         # mb.showinfo("提示", ke.keysym + " " + ke.char + " " + str(ke.keycode))
@@ -438,7 +451,10 @@ class Login(GUI):
         download_flag = CommonMSG.DOWNLOAD_FLAG_LAST_NUMBER
         selected_items = self.tree_inbox.selection()
 
-        if len(selected_items) > self.configuration.download_mail_number:
+        if self.current_full_load_mail_amount != self.mail_amount_one_page and \
+                self.current_full_load_mail_amount != len(self.mails_index):
+            mb.showinfo("提示", "服务器邮件附件加载中，请稍后下载邮件附件到本地磁盘！")
+        elif len(selected_items) > self.configuration.download_mail_number:
             mb.showinfo("提示",
                         "一次最多下载" + str(self.configuration.download_mail_number) + "封邮件的附件，请减少选中邮件数量。")
         else:
@@ -475,7 +491,10 @@ class Login(GUI):
                                        download_mails_index=self.current_display_mails.keys(),
                                        recall=None)
 
-        if self.worker.put_message(download_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
+        if self.current_full_load_mail_amount != self.mail_amount_one_page and \
+                self.current_full_load_mail_amount != len(self.mails_index):
+            mb.showinfo("提示", "服务器邮件附件加载中，请稍后下载邮件附件到本地磁盘！")
+        elif self.worker.put_message(download_message) == CommonMSG.ERR_CODE_QUEUE_FULL:
             mb.showinfo("提示", "系统繁忙，请稍后重试。")
 
     def refresh_clicked(self):
@@ -485,11 +504,12 @@ class Login(GUI):
         self.__layout_inbox()
 
     def update_status_recall(self, status=None, percent=None):
-        self.progress_download['value'] = percent
-        self.label_percent['text'] = "{}%".format(int(percent))
-
         if status is not None:
             self.label_status['text'] = "{}".format(status)
+
+        if percent is not None:
+            self.progress_download['value'] = percent
+            self.label_percent['text'] = "{}%".format(int(percent))
 
     def login_recall(self, handle_result, mails_index, mails_eml):
 
@@ -681,5 +701,5 @@ class Login(GUI):
         self.display_status = GUI.DISPLAY_INBOX
 
     def quit_clicked(self):
-        self.__stop_periodic_load_timer()
+        # self.__stop_periodic_load_timer()
         GUI.quit_clicked(self)
