@@ -30,7 +30,7 @@ To be added.
 
 #### Version
 
-V1.0.5  
+V1.0.6  
 Main features:  
 1) Download the attachments in the latest or selected 20 emails.  
 2) Download folder, mode selection and configuration.  

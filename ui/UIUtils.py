@@ -13,8 +13,14 @@ def center_window(window, width, height):
 
 
 def correct_subject(subject):
+    char_list = [subject[j] for j in range(len(subject)) if ord(subject[j]) in range(65536)]
+    new_subject = ''
+
+    for j in char_list:
+        new_subject = new_subject + j
+
     pattern = r"[\\\n]"
-    new_subject = re.sub(pattern, "", subject)
+    new_subject = re.sub(pattern, "", new_subject)
     return new_subject
 
 def replace_minus_as_slash(subject):

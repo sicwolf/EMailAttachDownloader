@@ -18,7 +18,7 @@ def get_default_download_path():
 class Configuration:
     def __init__(self):
         self.app_name = "电子邮件附件下载器"
-        self.app_version = "V1.0.5"
+        self.app_version = "V1.0.6"
         self.display_flag_mail_with_attach = True
         self.app_icon_file = 'resource\\app2.ico'
         self.attach_icon_file = 'resource\\paperclipreal.gif'

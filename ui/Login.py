@@ -613,13 +613,37 @@ class Login(GUI):
             mail_eml = mail_item[1]
             tmp_subject = UIUtils.correct_subject(mail_eml.subject)
 
-            self.tree_inbox.insert(
-                '',
-                loop,
-                values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject)
-                # image=self.attachment_logo
-            )
-            loop = loop + 1
+            try:
+                self.tree_inbox.insert(
+                    '',
+                    loop,
+                    values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject)
+                    # image=self.attachment_logo
+                )
+                loop = loop + 1
+            except tk.TclError as e:
+                if "above the range (U+0000-U+FFFF) allowed by Tcl" in str(e):
+                    astral = re.compile(r'([^\x00-\uffff])')
+                    s = mail_eml.sender_name
+                    new_sender_name = ""
+                    for i, ss in enumerate(re.split(astral, s)):
+                        if not i % 2:
+                            new_sender_name += ss
+                        else:
+                            new_sender_name += '?'
+
+                    mail_eml.sender_name = new_sender_name
+                    self.tree_inbox.insert(
+                        '',
+                        loop,
+                        values=('', mail_eml.sender_name, mail_eml.receiver_addr, mail_eml.receive_time, tmp_subject)
+                        # image=self.attachment_logo
+                    )
+                    loop = loop + 1
+                else:
+                    logging.error(e)
+            except BaseException as e:
+                logging.error(e)
 
     def __notify_configuration(self):
         # Update configuration

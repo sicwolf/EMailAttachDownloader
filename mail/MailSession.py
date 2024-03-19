@@ -222,8 +222,8 @@ class MailSession:
 
             attach_index = attach_index + 1
 
-            if self.configuration.download_in_same_folder:
-                filename = subject + "." + filename.split(".")[-1]
+            # if self.configuration.download_in_same_folder:
+            #     filename = subject + "." + filename.split(".")[-1]
 
             if not os.path.exists(folder_name):
                 os.makedirs(folder_name)

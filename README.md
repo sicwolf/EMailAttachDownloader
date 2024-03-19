@@ -26,11 +26,12 @@ https://blog.csdn.net/sicwolf/article/details/121050352
 
 #### 使用说明
 
-使用说明待补充  
+请参考CSDN博文《电子邮件附件下载器简介》  
+https://blog.csdn.net/sicwolf/article/details/126330003  
 
 #### 版本说明
 
-V1.0.5  
+V1.0.6  
 主要功能：  
 1） 批量下载最近的或者选中的20个电子邮件的附件  
 2） 下载路径、下载模式的选择和配置  
